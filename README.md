@@ -1,6 +1,6 @@
-# EktaFoods# 🌱 Ekta Foods: Command Deck (Protocol: Pure Rooted)
+# 🌱 Ekta Foods: Command Deck (Protocol: Pure Rooted)
 
-**Status:** `ONLINE` (v3.2) | **Target Market:** `Uttar Pradesh / Pan-India`
+**Status:** `ONLINE` (v3.5) | **Target Market:** `Uttar Pradesh / Pan-India`
 
 ## 📖 Overview
 The **Ekta Foods Command Deck** is an AI-powered operating system for **Pure Rooted**, an organic farm-to-table venture. It serves as a "Senior Advisor" for the business, automating content strategy, market intelligence, and B2B communication while strictly adhering to a "Swadeshi" and "Ayurvedic" quality standard.
@@ -14,7 +14,7 @@ The system is governed by a central **Quality Manual** (`Ekta_Quality_Manual.txt
 ### 🤖 The Agent Crew
 | Module | Agent Name | Function |
 | :--- | :--- | :--- |
-| **🧠 The Brain** | Editorial Director | Generates Instagram captions/blogs about organic farming without "hallucinating" unrelated topics. |
+| **🧠 The Brain** | Editorial Director | **Persona: "Auntiji".** Generates warm, wise content about organic farming and Ayurveda. Strictly avoids unrelated topics. |
 | **👂 The Ears** | Supply Chain Sentinel | Scans Google for recent food adulteration news to generate "Counter-Narratives" for the brand. |
 | **🤝 The Handshake** | B2B Relations (India) | Drafts short, respectful **WhatsApp messages** optimized for Indian vendors to secure phone calls/visits. |
 | **👁️ The Eyes** | Vision Analyst | Uses GPT-4o Vision to analyze photos of harvest/packaging for quality control and social proof. |
