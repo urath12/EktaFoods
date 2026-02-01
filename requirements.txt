@@ -1,0 +1,5 @@
+streamlit
+crewai
+crewai-tools
+langchain_openai
+google-search-results
