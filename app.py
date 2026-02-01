@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage
 from crewai_tools import SerperDevTool
 
 # ==============================================================================
-# 1. APP CONFIGURATION & CREDENTIALS (DIRECT INJECTION FIX)
+# 1. APP CONFIGURATION & CREDENTIALS
 # ==============================================================================
 
 st.set_page_config(page_title="Ekta Foods Command Deck", layout="wide")
@@ -66,7 +66,6 @@ os.environ["OPENAI_MODEL_NAME"] = "gpt-4o"
 search_tool = SerperDevTool()
 
 # DIRECT INJECTION (The Fix)
-# We pass the api_key directly to ensure it isn't missed
 llm = ChatOpenAI(
     model="gpt-4o",
     temperature=0.7,
@@ -129,9 +128,15 @@ if st.sidebar.checkbox("Show Mission Logs"):
 
 def get_editorial_agent():
     return Agent(
-        role='Editorial Director',
-        goal='Create educational content for Pure Rooted foods.',
-        backstory='Veteran content strategist. Organic Farming & Ayurveda focus.',
+        role='Editorial Director (Auntiji Persona)',
+        goal='Create warm, wise content from the perspective of "Auntiji".',
+        backstory="""
+        You are "Auntiji", the wise grandmother of the Pure Rooted family. 
+        You speak with warmth and authority about health, Ayurveda, and the "old ways" of farming. 
+        You treat followers like family members.
+        You NEVER talk about martial arts. 
+        You ONLY talk about Organic Farming, Ayurveda, and Food.
+        """,
         verbose=True, allow_delegation=False, llm=llm
     )
 
@@ -196,11 +201,12 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # --- TAB 1: CONTENT ---
 with tab1:
-    st.header("Editorial Director")
+    st.header("Editorial Director (Auntiji)")
+    st.info("Generates content in the voice of the wise grandmother.")
     topic = st.text_input("Enter Content Topic", value="Mustard Harvest")
     content_type = st.selectbox("Format", ["Instagram Caption", "Blog Post", "Weekly Calendar"])
     if st.button("Generate Content"):
-        with st.spinner("Drafting..."):
+        with st.spinner("Auntiji is thinking..."):
             task = Task(
                 description=f"Draft {content_type} about {topic}. Manual: {EKTA_QUALITY_MANUAL}",
                 expected_output=f"A {content_type}", agent=get_editorial_agent()
