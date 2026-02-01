@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage
 from crewai_tools import SerperDevTool
 
 # ==============================================================================
-# 1. APP CONFIGURATION & CREDENTIALS (CLOUD FIX)
+# 1. APP CONFIGURATION & CREDENTIALS (DIRECT INJECTION FIX)
 # ==============================================================================
 
 st.set_page_config(page_title="Ekta Foods Command Deck", layout="wide")
@@ -21,10 +21,10 @@ def get_secret(key_name):
     """
     Robustly fetches secrets from Streamlit Cloud OR Environment.
     """
-    # 1. Check Streamlit Cloud Secrets (st.secrets)
+    # 1. Check Streamlit Cloud Secrets
     if key_name in st.secrets:
         return st.secrets[key_name]
-    # 2. Check System Environment (Local/Codespaces)
+    # 2. Check System Environment
     if key_name in os.environ:
         return os.environ[key_name]
     return None
@@ -33,30 +33,45 @@ def get_secret(key_name):
 openai_api_key = get_secret("OPENAI_API_KEY")
 serper_api_key = get_secret("SERPER_API_KEY")
 
-# Fallback: Ask in Sidebar if still missing
+# Fallback: Ask in Sidebar
 if not openai_api_key:
     openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
-else:
-    st.sidebar.success("✅ OpenAI Key Loaded")
-
 if not serper_api_key:
     serper_api_key = st.sidebar.text_input("Serper (Google) API Key", type="password")
+
+# --- DIAGNOSTIC TOOL (THE SNIFFER) ---
+if openai_api_key:
+    masked_key = f"{openai_api_key[:8]}..."
+    st.sidebar.caption(f"🔑 OpenAI Key Detected: `{masked_key}`")
 else:
-    st.sidebar.success("✅ Serper Key Loaded")
+    st.sidebar.error("❌ OpenAI Key Missing")
+
+if serper_api_key:
+    st.sidebar.caption("🔑 Serper Key Detected")
+else:
+    st.sidebar.error("❌ Serper Key Missing")
+# -------------------------------------
 
 # Critical Stop
 if not openai_api_key or not serper_api_key:
     st.warning("⚠️ Waiting for API keys...")
     st.stop()
 
-# FORCE SET ENVIRONMENT VARIABLES (Crucial for CrewAI)
+# FORCE SET ENVIRONMENT VARIABLES
 os.environ["OPENAI_API_KEY"] = openai_api_key
 os.environ["SERPER_API_KEY"] = serper_api_key
-os.environ["OPENAI_MODEL_NAME"] = "gpt-4o" # Explicitly tell CrewAI to use GPT-4o
+os.environ["OPENAI_MODEL_NAME"] = "gpt-4o"
 
-# Initialize Tools & LLM *AFTER* setting env vars
+# Initialize Tools
 search_tool = SerperDevTool()
-llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
+
+# DIRECT INJECTION (The Fix)
+# We pass the api_key directly to ensure it isn't missed
+llm = ChatOpenAI(
+    model="gpt-4o",
+    temperature=0.7,
+    api_key=openai_api_key 
+)
 
 # ==============================================================================
 # 2. THE SOUL (KNOWLEDGE BASE)
@@ -65,24 +80,22 @@ llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
 @st.cache_data
 def load_manual():
     try:
-        # Try finding the file in current directory
         if os.path.exists("Ekta_Quality_Manual.txt"):
             with open("Ekta_Quality_Manual.txt", "r") as f:
                 return f.read()
         else:
             return None
-    except Exception as e:
+    except Exception:
         return None
 
 EKTA_QUALITY_MANUAL = load_manual()
 
 if EKTA_QUALITY_MANUAL is None:
-    # If file is missing on Cloud, use a Default Fallback to prevent crash
-    st.warning("⚠️ 'Ekta_Quality_Manual.txt' not found. Using Default Backup Manual.")
+    st.warning("⚠️ 'Ekta_Quality_Manual.txt' not found. Using Default Backup.")
     EKTA_QUALITY_MANUAL = """
     [MISSION] Pure Rooted stands for Zero Adulteration.
-    [PRODUCTS] Mustard Oil (Kacchi Ghani), A2 Ghee (Bilona), Turmeric.
-    [VALUES] Fair Trade, Swadeshi, Transparency.
+    [PRODUCTS] Mustard Oil (Kacchi Ghani), A2 Ghee (Bilona).
+    [VALUES] Fair Trade, Swadeshi.
     """
 
 # ==============================================================================
@@ -118,7 +131,7 @@ def get_editorial_agent():
     return Agent(
         role='Editorial Director',
         goal='Create educational content for Pure Rooted foods.',
-        backstory='You are a veteran content strategist. You NEVER talk about martial arts. You ONLY talk about Organic Farming, Ayurveda, and Food.',
+        backstory='Veteran content strategist. Organic Farming & Ayurveda focus.',
         verbose=True, allow_delegation=False, llm=llm
     )
 
@@ -136,11 +149,10 @@ def get_sales_agent():
         goal='Start conversations via WhatsApp or Phone.',
         backstory="""
         You are a business relationship manager in Uttar Pradesh. 
-        You know that in India, business happens on WhatsApp and Phone calls, not long emails.
+        You know that in India, business happens on WhatsApp and Phone calls.
         Your English is simple, respectful, and direct (Indian Business English).
         You NEVER write long paragraphs. 
         Your ONLY goal is to get a 'Phone Call' or 'Shop Visit'.
-        You use words like 'Namaste', 'Sir/Ma'am', and 'Vishwas' (Trust).
         """,
         tools=[search_tool], verbose=True, allow_delegation=False, llm=llm
     )
@@ -166,7 +178,9 @@ def analyze_image(uploaded_file, prompt_context):
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}},
         ]
     )
-    response = llm.invoke([message])
+    # Direct injection for Vision as well
+    vision_llm = ChatOpenAI(model="gpt-4o", api_key=openai_api_key)
+    response = vision_llm.invoke([message])
     return response.content
 
 # ==============================================================================
