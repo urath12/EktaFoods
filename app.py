@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage
 from crewai_tools import SerperDevTool
 
 # ==============================================================================
-# 1. APP CONFIGURATION & CREDENTIALS
+# 1. APP CONFIGURATION & CREDENTIALS (CLOUD FIX)
 # ==============================================================================
 
 st.set_page_config(page_title="Ekta Foods Command Deck", layout="wide")
@@ -17,11 +17,23 @@ st.set_page_config(page_title="Ekta Foods Command Deck", layout="wide")
 st.sidebar.title("⚙️ Command Deck Settings")
 st.sidebar.markdown("### Credentials")
 
-# 1. Try to fetch from Environment (Codespaces Secrets)
-openai_api_key = os.environ.get("OPENAI_API_KEY")
-serper_api_key = os.environ.get("SERPER_API_KEY")
+def get_secret(key_name):
+    """
+    Robustly fetches secrets from Streamlit Cloud OR Environment.
+    """
+    # 1. Check Streamlit Cloud Secrets (st.secrets)
+    if key_name in st.secrets:
+        return st.secrets[key_name]
+    # 2. Check System Environment (Local/Codespaces)
+    if key_name in os.environ:
+        return os.environ[key_name]
+    return None
 
-# 2. If not found in Environment, ask in Sidebar
+# Fetch Keys
+openai_api_key = get_secret("OPENAI_API_KEY")
+serper_api_key = get_secret("SERPER_API_KEY")
+
+# Fallback: Ask in Sidebar if still missing
 if not openai_api_key:
     openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 else:
@@ -32,13 +44,17 @@ if not serper_api_key:
 else:
     st.sidebar.success("✅ Serper Key Loaded")
 
+# Critical Stop
 if not openai_api_key or not serper_api_key:
-    st.warning("⚠️ Please enter your API keys to activate the Agents.")
+    st.warning("⚠️ Waiting for API keys...")
     st.stop()
 
+# FORCE SET ENVIRONMENT VARIABLES (Crucial for CrewAI)
 os.environ["OPENAI_API_KEY"] = openai_api_key
 os.environ["SERPER_API_KEY"] = serper_api_key
+os.environ["OPENAI_MODEL_NAME"] = "gpt-4o" # Explicitly tell CrewAI to use GPT-4o
 
+# Initialize Tools & LLM *AFTER* setting env vars
 search_tool = SerperDevTool()
 llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
 
@@ -49,16 +65,25 @@ llm = ChatOpenAI(model="gpt-4o", temperature=0.7)
 @st.cache_data
 def load_manual():
     try:
-        with open("Ekta_Quality_Manual.txt", "r") as f:
-            return f.read()
-    except FileNotFoundError:
+        # Try finding the file in current directory
+        if os.path.exists("Ekta_Quality_Manual.txt"):
+            with open("Ekta_Quality_Manual.txt", "r") as f:
+                return f.read()
+        else:
+            return None
+    except Exception as e:
         return None
 
 EKTA_QUALITY_MANUAL = load_manual()
 
 if EKTA_QUALITY_MANUAL is None:
-    st.error("🚨 CRITICAL ERROR: 'Ekta_Quality_Manual.txt' not found.")
-    st.stop()
+    # If file is missing on Cloud, use a Default Fallback to prevent crash
+    st.warning("⚠️ 'Ekta_Quality_Manual.txt' not found. Using Default Backup Manual.")
+    EKTA_QUALITY_MANUAL = """
+    [MISSION] Pure Rooted stands for Zero Adulteration.
+    [PRODUCTS] Mustard Oil (Kacchi Ghani), A2 Ghee (Bilona), Turmeric.
+    [VALUES] Fair Trade, Swadeshi, Transparency.
+    """
 
 # ==============================================================================
 # 3. MEMORY SYSTEM
@@ -86,7 +111,7 @@ if st.sidebar.checkbox("Show Mission Logs"):
     st.sidebar.dataframe(load_history())
 
 # ==============================================================================
-# 4. AGENT DEFINITIONS (UPDATED FOR INDIA CONTEXT)
+# 4. AGENT DEFINITIONS
 # ==============================================================================
 
 def get_editorial_agent():
@@ -207,15 +232,11 @@ with tab3:
                 agent=get_sales_agent()
             )
             res = Crew(agents=[get_sales_agent()], tasks=[task]).kickoff()
-            
             st.success("✅ Message Ready")
             st.markdown("### 📱 WhatsApp Draft")
             st.markdown(res.raw)
-            
-            # COPY BUTTON
             st.caption("📋 One-Click Copy:")
             st.code(res.raw, language='text')
-            
             save_to_history("Sales", target_name, res.raw)
 
 # --- TAB 4: VISION ---
